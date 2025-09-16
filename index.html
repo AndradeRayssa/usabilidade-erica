@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulário com Menu</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f3f5f8;
+    }
+    /* Menu */
+    .navbar {
+      background: #333;
+      padding: 15px;
+      text-align: center;
+    }
+    .navbar a {
+      color: white;
+      text-decoration: none;
+      padding: 14px 20px;
+      display: inline-block;
+    }
+    .navbar a:hover {
+      background: #575757;
+    }
+    /* Conteúdo */
+    .container {
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+    }
+    .card {
+      background: #fff;
+      padding: 20px 24px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 360px;
+    }
+    h2 { margin-top: 0; }
+    label { display:block; margin-top: 12px; font-weight: bold; }
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    .actions {
+      display:flex;
+      flex-wrap: wrap;
+      gap:8px;
+      margin-top: 16px;
+    }
+    button {
+      flex:1;
+      padding:10px;
+      border:none;
+      border-radius:6px;
+      font-weight:bold;
+      cursor:pointer;
+    }
+    .btn-primary { background:#4caf50; color:#fff; }
+    .btn-secondary { background:#ddd; }
+    .btn-danger { background:#f44336; color:#fff; }
+    .btn-disabled { opacity:.5; cursor:not-allowed; }
+    .status { margin-top:12px; font-size:13px; color:#555; }
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      width: 280px;
+    }
+    .buttons { margin-top: 20px; display: flex; justify-content: center; gap: 10px; }
+    .btn-cancel { background: gray; color: white; }
+  </style>
+</head>
+<body>
+  <!-- Menu -->
+  <div class="navbar">
+    <a href="#home">Início</a>
+    <a href="#produtos">Produtos</a>
+    <a href="#contato">Contato</a>
+  </div>
+
+  <!-- Conteúdo -->
+  <div class="container">
+    <div class="card">
+      <h2>Cadastro</h2>
+      <form id="form">
+        <label for="name">Nome</label>
+        <input type="text" id="name" name="name">
+
+        <label for="email">E-mail</label>
+        <input type="email" id="email" name="email">
+
+        <label for="comment">Comentário</label>
+        <textarea id="comment" name="comment"></textarea>
+
+        <div class="actions">
+          <button type="button" id="saveBtn" class="btn-primary">Cadastrar</button>
+          <button type="button" id="undoBtn" class="btn-secondary btn-disabled">Desfazer</button>
+          <button type="button" id="redoBtn" class="btn-secondary btn-disabled">Refazer</button>
+          <button type="button" id="deleteBtn" class="btn-danger">Excluir conta</button>
+        </div>
+      </form>
+      <div class="status" id="status">Nenhuma ação realizada</div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmação -->
+  <div id="modalConfirmacao" class="modal">
+    <div class="modal-content">
+      <h3>Deseja excluir sua conta?</h3>
+      <p>Essa ação é irreversível.</p>
+      <div class="buttons">
+        <button class="btn btn-danger" onclick="confirmarExclusao()">Sim, excluir</button>
+        <button class="btn btn-cancel" onclick="fecharModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fields = ["name","email","comment"].map(id=>document.getElementById(id));
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    const statusEl = document.getElementById("status");
+    const modal = document.getElementById("modalConfirmacao");
+
+    let history = [];
+    let pointer = -1;
+    let applying = false;
+
+    function snapshot() {
+      return {
+        name: fields[0].value,
+        email: fields[1].value,
+        comment: fields[2].value
+      };
+    }
+    function applyState(state) {
+      applying = true;
+      fields[0].value = state.name;
+      fields[1].value = state.email;
+      fields[2].value = state.comment;
+      applying = false;
+    }
+    function pushState(action) {
+      if(applying) return;
+      const state = snapshot();
+      if(pointer < history.length-1) history = history.slice(0,pointer+1);
+      history.push({state, action});
+      pointer = history.length-1;
+      updateUI();
+    }
+    function updateUI() {
+      undoBtn.classList.toggle("btn-disabled", pointer<=0);
+      redoBtn.classList.toggle("btn-disabled", pointer>=history.length-1);
+    }
+    function undo() {
+      if(pointer<=0) return;
+      pointer--;
+      applyState(history[pointer].state);
+      statusEl.textContent = "Desfeito: " + history[pointer+1].action;
+      updateUI();
+    }
+    function redo() {
+      if(pointer>=history.length-1) return;
+      pointer++;
+      applyState(history[pointer].state);
+      statusEl.textContent = "Refeito: " + history[pointer].action;
+      updateUI();
+    }
+    fields.forEach(f => f.addEventListener("input", ()=>pushState("Edição")));
+    document.getElementById("saveBtn").addEventListener("click", ()=>{
+      pushState("Cadastro salvo");
+      statusEl.textContent = "Cadastro salvo ✅";
+    });
+    undoBtn.addEventListener("click", undo);
+    redoBtn.addEventListener("click", redo);
+
+    document.getElementById("deleteBtn").addEventListener("click", ()=> {
+      modal.style.display="flex";
+    });
+    function fecharModal() { modal.style.display="none"; }
+    function confirmarExclusao() {
+      fields.forEach(f=>f.value="");
+      pushState("Conta excluída");
+      statusEl.textContent = "Conta excluída ❌";
+      fecharModal();
+    }
+    window.fecharModal = fecharModal;
+    window.confirmarExclusao = confirmarExclusao;
+
+    // atalhos teclado
+    document.addEventListener("keydown", e=>{
+      if(e.ctrlKey && e.key==="z"){ e.preventDefault(); undo(); }
+      if(e.ctrlKey && (e.key==="y" || (e.shiftKey && e.key==="Z"))){ e.preventDefault(); redo(); }
+    });
+
+    pushState("Inicial");
+  </script>
+</body>
+</html>
